@@ -1,9 +1,11 @@
+import io
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
+from openpyxl.utils import get_column_letter
 from supabase import Client, create_client
 
 # 1. Configuración de página (Siempre debe ser el primer comando)
@@ -17,21 +19,21 @@ if "autenticado" not in st.session_state:
 
 if not st.session_state.autenticado:
     st.markdown("<h1 style='text-align: center;'>🔒 Acceso al Panel OKS</h1>", unsafe_allow_html=True)
-    
+
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         with st.form("login_form"):
             usuario = st.text_input("Usuario")
             clave = st.text_input("Contraseña", type="password")
             submit = st.form_submit_button("Ingresar", use_container_width=True)
-            
+
             if submit:
                 if usuario == "admin" and clave == "oks2026":
                     st.session_state.autenticado = True
                     st.rerun()
                 else:
                     st.error("❌ Usuario o clave incorrectos")
-    
+
     # Detiene la ejecución del script aquí si no está autenticado
     st.stop()
 
@@ -53,6 +55,7 @@ COLORES = [
     [234, 88, 12],    # naranja
 ]
 
+
 def traer_todo(construir_query, pagina=1000):
     filas, desde = [], 0
     while True:
@@ -63,8 +66,25 @@ def traer_todo(construir_query, pagina=1000):
         desde += pagina
     return filas
 
+
 def a_hora_argentina(serie):
     return pd.to_datetime(serie, utc=True).dt.tz_convert(TZ)
+
+
+def generar_excel(df):
+    """Convierte un DataFrame en un archivo .xlsx (bytes) con anchos ajustados."""
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Censo")
+        ws = writer.sheets["Censo"]
+        for i, col in enumerate(df.columns, start=1):
+            largo_datos = df[col].astype(str).map(len).max() if not df.empty else 0
+            ws.column_dimensions[get_column_letter(i)].width = min(
+                max(largo_datos, len(col)) + 2, 60
+            )
+        ws.freeze_panes = "A2"
+    return buffer.getvalue()
+
 
 # Botón para cerrar sesión
 colA, colB = st.columns([8, 1])
@@ -98,7 +118,7 @@ if datos_censo:
 
     df_censo = df_censo.dropna(subset=["latitud", "longitud"])
     df_censo = df_censo[
-        (df_censo["latitud"].between(-35.5, -33.5)) & 
+        (df_censo["latitud"].between(-35.5, -33.5)) &
         (df_censo["longitud"].between(-60.0, -57.0))
     ]
 
@@ -171,12 +191,13 @@ if datos_censo:
         column_config=config_columnas,
     )
 
-    csv = df_mostrar.to_csv(index=False).encode("utf-8-sig")
+    # 📥 Descarga en Excel (.xlsx)
+    excel_bytes = generar_excel(df_mostrar)
     st.download_button(
-        label="📥 Descargar Reporte en Excel (CSV)",
-        data=csv,
-        file_name="Reporte_Censo_OKS.csv",
-        mime="text/csv",
+        label="📥 Descargar Reporte en Excel",
+        data=excel_bytes,
+        file_name="Reporte_Censo_OKS.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
     if not df_censo.empty:
@@ -191,7 +212,7 @@ if datos_censo:
             get_position=["longitud", "latitud"],
             get_fill_color=[220, 38, 38],
             get_line_color=[255, 255, 255],
-            get_radius=5,  
+            get_radius=5,
             stroked=True,
             line_width_min_pixels=1,
             pickable=True,
@@ -236,9 +257,9 @@ datos_rastreo = traer_todo(
 if datos_rastreo:
     df_r = pd.DataFrame(datos_rastreo)
     df_r = df_r.dropna(subset=["latitud", "longitud"])
-    
+
     df_r = df_r[
-        (df_r["latitud"].between(-35.5, -33.5)) & 
+        (df_r["latitud"].between(-35.5, -33.5)) &
         (df_r["longitud"].between(-60.0, -57.0))
     ]
 
