@@ -321,9 +321,13 @@ if datos_rastreo:
                     data=df_caminos,
                     get_path="path",
                     get_color="color",
-                    get_width=4,
+                    get_width=3,
                     width_units="pixels",
-                    width_min_pixels=3,
+                    width_min_pixels=2,
+                    width_max_pixels=5,
+                    joint_rounded=True,
+                    cap_rounded=True,
+                    miter_limit=1,
                     pickable=True,
                 )
                 layers_list.append(capa_linea)
@@ -336,6 +340,8 @@ if datos_rastreo:
                 get_position=["longitud", "latitud"],
                 get_fill_color="color",
                 get_radius=3,
+                radius_min_pixels=3,
+                radius_max_pixels=6,
                 pickable=True,
             )
             layers_list.append(capa_puntos)
@@ -347,6 +353,8 @@ if datos_rastreo:
                 get_fill_color="color",
                 get_line_color=[255, 255, 255],
                 get_radius=8,
+                radius_min_pixels=7,
+                radius_max_pixels=12,
                 stroked=True,
                 line_width_min_pixels=2,
                 pickable=True,
